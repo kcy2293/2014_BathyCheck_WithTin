@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html>
+	<head> 
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8"> 
+		<title>UST21-muChart Tools 프로그램</title> 
+		<link rel="stylesheet" type="text/css" href="/css/style.css">
+		<link rel="stylesheet" type="text/css" href="/css/jquery-ui-1.10.3.css">
+		<script type="text/javascript" src="/socket.io/socket.io.js"></script>
+		<script type="text/javascript" src="/js/jquery-latest.js"></script>
+		<script type="text/javascript" src="/js/jquery-ui-latest.js"></script>
+		<script type="text/javascript" src="/js/jquery.layout-latest.js"></script>
+		<script type="text/javascript">
+		  var isBusy = false;
+			$(document).ready(function () {
+				$('body').layout({  
+					west__applyDefaultStyles: true
+					,center__applyDefaultStyles: true 
+					, west__size:     "360"
+					, south__size:     "50"
+				});
+
+				$('#smsg').progressbar({
+					value: 0
+				});
+
+				$('#rmsg').progressbar({
+					value: 0
+				});
+
+				$('select option').prepend('&nbsp;&nbsp;');
+
+				$('#tabs').tabs({
+				  //event: "mouseover"
+				});
+
+				$('#execute').on('click',function(){
+					if (isBusy === false) {
+					  isBusy = true;
+						$('#fwidth').val($('#mapFrame').width());
+						$('#fheight').val($('#mapFrame').height());
+						$('#errMsg1').empty();
+						$('#errMsg2').empty();
+					  return true;
+					} else {
+					  alert("잠시 후 다시 실행 해 주세요");
+					  return false;
+					}
+				});
+
+			});
+		</script>
+		<script type="text/javascript">
+			var socket = io.connect();
+
+			socket
+			.on('myTicket', function(data) {
+				$("#myTicket").val(data);
+			})
+			.on('files', function(data) {
+				var fileNames = data;
+				$("#selectFile").val(fileNames.sFile);
+				$("#totalFile").val(fileNames.tFile);
+			})
+			.on('end', function(data) {
+				document.getElementById('execute').disabled = false;
+			})
+			.on('process', function(data) {
+				$("#smsg").progressbar({
+					value: Number(data),
+					change: function() {
+						if (data === '100') {
+							$("#smsg-label").text("");
+						}
+						else {
+							$("#smsg-label").text(data + "%");
+						}
+					},
+					complete: function() {
+						$("#smsg-label").text("업로드완료");
+					}
+				});
+			})
+			.on('inProcess', function(data) {
+				$("#rmsg").progressbar({
+					value: Number(data)
+				});
+			})
+			.on('frmsg', function(data) {
+				$("#frmsg").text(data);
+			})
+			.on('errCoord1', function(data) {
+				var msgDiv = document.getElementById('errMsg1');
+				msgDiv.innerHTML = msgDiv.innerHTML + data + '<br>';
+			})
+			.on('errCoord2', function(data) {
+				var msgDiv = document.getElementById('errMsg2');
+				msgDiv.innerHTML = msgDiv.innerHTML + data + '<br>';
+			})
+			.on('down1', function(data) {
+				fillDownBtn($('#down1'), data);
+			})
+			.on('down2', function(data) {
+				fillDownBtn($('#down2'), data);
+			})
+			.on('down3', function(data) {
+				fillDownBtn($('#down3'), data);
+				isBusy = false;
+			});
+
+			function fillDownBtn(tag, data) {
+				var fullFileName = '/download/'+data;
+				tag
+					.attr("disabled", false)
+					.closest("a")
+						.attr("href",fullFileName)
+						.attr("download", data);
+			}
+
+			function resetResult() {
+				document.getElementById('execute').disabled = true;
+				$("#end").text("");
+				$("#smsg").progressbar("value", 0);
+				$("#frmsg").text("");
+				$("#rmsg").progressbar("value", 0);
+				$("#tabs div input").each(function () {
+				  $(this).attr("disabled", true);
+				});
+			};
+
+			function isEmpty() {
+				if (document.getElementById('sFile').value == '') {
+					alert('선택수심파일을 선택해주세요');
+					document.getElementById('sFile').focus();
+					return false;
+				}
+				if (document.getElementById('tFile').value == '') {
+					alert('전체수심파일을 선택해주세요');
+					document.getElementById('tFile').focus();
+					return false;
+				}
+				var myTicket = document.getElementById('myTicket').value;
+				document.getElementById('uploadform').action = "/upload?myTicket="+myTicket;
+
+				return true;
+			};
+		</script>
+	</head>
+	<body>
+		<div class="ui-layout-north" id="north"> 
+			<div class="top_block block_1"> 
+				<div class="content" >
+					<div class="logo">
+						<a href="http://www.ust21.co.kr/"><img src="/images/company_logo.png" width="91" height="34" alt="UST21"></a>
+					</div>
+					<div class="version">
+						<h1>muChart Tools v1.0</h1>
+					</div>
+				</div> 
+			</div> 
+		</div>
+		
+		<div class="ui-layout-center">
+			<iframe name="mapFrame" id="mapFrame"></iframe>
+		</div>
+
+		<div class="ui-layout-west">
+			<div>
+				<h2 style="margin:0">기능</h2>
+			</div><div style="border-bottom: solid 1px #000000;margin-bottom:10px;"></div>
+			<div class="section-end">
+				<select class="applists" id="appSelect" style="width:300px;height:30px;"> 
+					<option><%= title %></option>
+				</select>
+			</div>
+			
+			<div>
+				<h2 style="margin:0">입력</h2>
+			</div><div style="border-bottom: solid 1px #000000;margin-bottom:10px;"></div>
+			<form action="/upload" method="post" target="hiddenFrame" id="uploadform" name="uploadform" enctype="multipart/form-data" onsubmit="return isEmpty();">
+				<div class="section">
+					<table class="inputtable" cellpadding="5" cellspacing="0">
+						<tr>
+							<th>선택수심</th>
+							<td><input type="file" id="sFile" name="sFile" onchange="resetResult();" class="inputf" value=""/></td>
+						</tr>
+						<tr>
+							<th>전체수심</th>
+							<td><input type="file" id="tFile" name="tFile" onchange="resetResult();" class="inputf" value=""/></td>
+						</tr>
+					</table>
+				</div>
+				<div class="section">
+					<table class="btnsend" cellpadding="5" cellspacing="0">
+						<tr>
+							<th><div id="smsg" class="progressbar"><div id="smsg-label" class="progress-label"></div></div></th>
+							<td><input type="submit" value="업로드" class="btnsize"</td>
+						</tr>
+					</table>
+				</div>
+			</form>
+			<form action="/execute" method="post" target="mapFrame" name="executeForm" >
+				<iframe name="hiddenFrame" id="h1" class="hide"></iframe>
+				<input type="hidden" name="selectFile" id="selectFile" value=""/>
+				<input type="hidden" name="totalFile" id="totalFile" value=""/>
+				<input type="hidden" name="myTicket" id="myTicket" value=""/>
+				<input type="hidden" name="fwidth" id="fwidth" value=""/>
+				<input type="hidden" name="fheight" id="fheight" value=""/>
+				<div class="section-end">
+					<table class="btnsend" cellpadding="5" cellspacing="0">
+						<tr>
+							<th><div id="rmsg" class="progressbar"><div id="frmsg" class="progress-label"></div></div></th>
+							<td><input type="submit" id="execute" class="btnsize" disabled="disabled" value="검출시작"></td>
+						</tr>
+					</table>
+				</div>
+			</form>
+		
+			<div>
+				<h2 style="margin:0">결과</h2>
+			</div><div style="border-bottom: solid 1px #000000;margin-bottom:10px;"></div>
+
+			<div id="tabs">
+				<ul>
+					<li><a href="#tabs-1">망내 오류</a></li>
+					<li><a href="#tabs-2">선상 오류</a></li>
+					<li><a href="#tabs-3">스크립트</a></li>
+				</ul>
+				<div id="tabs-1">
+					<div class="tabbutton">
+						<a><input id="down1" type="button" value="다운로드" disabled="disabled"></a>
+					</div>	
+					<div class="errBox">
+						<div id="errMsg1" class="errMsg" contenteditable="true" spellcheck="false"></div>
+					</div>	
+				</div>
+				<div id="tabs-2">
+					<div class="tabbutton">
+						<a><input id="down2" type="button" value="다운로드" disabled="disabled"></a>
+					</div>	
+					<div class="errBox">
+						<div id="errMsg2" class="errMsg" contenteditable="true" spellcheck="false"></div>
+					</div>	
+				</div>
+				<div id="tabs-3">
+					<div class="tabbutton">
+						<a><input id="down3" type="button" value="다운로드" disabled="disabled"></a>
+					</div>	
+					<div class="errBox">
+						<div id="errMsg3" class="errMsg" contenteditable="true" spellcheck="false"></div>
+					</div>	
+				</div>
+			</div>
+
+			<div id="fileDownDiv">
+			</div>	
+		</div>
+
+		<div class="ui-layout-south">
+			<div class="logo_foot">
+				<a href="http://www.ust21.co.kr/"><img src="/images/foot_logo.gif" width="618" height="28" alt="UST21"></a>
+			</div>
+		</div>
+	</body>
+</html>
+

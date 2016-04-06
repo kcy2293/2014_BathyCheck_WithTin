@@ -1,0 +1,17 @@
+{
+  "name": "application-name",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "start": "node app.js"
+  },
+  "dependencies": {
+    "ejs": "*",
+    "express": "3.4.8",
+    "formidable": "*",
+    "jsts": "*",
+    "moment": "^2.10.2",
+    "shortid": "^2.2.2",
+    "socket.io": "*"
+  }
+}

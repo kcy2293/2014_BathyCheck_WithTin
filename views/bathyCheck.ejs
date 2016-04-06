@@ -1,0 +1,88 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <title>Triangulation example</title>
+  <script src="/js/OpenLayers.js"></script>
+  <script type="text/plain" src="/js/attache.array.min.js"></script>
+  <script src="/jsts/javascript.util.js"></script>
+  <script src="/jsts/jsts.js"></script>
+<script type="text/javascript">
+  function init() {
+    var reader = new jsts.io.WKTReader();
+
+    var mPoint = reader.read("<%- mPoint %>");
+    var errPolyPoint = reader.read("<%- errPolyPoint %>");
+    var errEdgePoint = reader.read("<%- errEdgePoint %>");
+    var delaunayResult = reader.read("<%- sDelaunay %>");
+
+		var geomEnvCoor = (delaunayResult.getEnvelope()).getCoordinates();
+		var envelope = new jsts.geom.Envelope();
+		for (var i = 0 ; i < geomEnvCoor.length ; i++){
+			envelope.expandToInclude(geomEnvCoor[i]);
+		}
+		var bound = 1;
+		var left = Number(envelope.getMinX().toFixed(0)) - bound;
+		var botm = Number(envelope.getMinY().toFixed(0)) - bound;
+		var rigt = Number(envelope.getMaxX().toFixed(0)) + bound;
+		var top  = Number(envelope.getMaxY().toFixed(0)) + bound;
+
+		var parser = new jsts.io.OpenLayersParser();
+		mPoint = parser.write(mPoint);
+		errPolyPoint = parser.write(errPolyPoint);
+		errEdgePoint = parser.write(errEdgePoint);
+		delaunayResult = parser.write(delaunayResult);
+
+		var map = new OpenLayers.Map('map', {
+			maxExtent: new OpenLayers.Bounds(left,botm,rigt,top),
+			maxResolution: 0.0001,
+			units: 'm',
+			controls: [
+				new OpenLayers.Control.MousePosition()
+				, new OpenLayers.Control.Navigation()
+				, new OpenLayers.Control.Attribution()
+			]
+    });
+
+		var recdiv = "<div style='float:left;width:16px; height:8px; background: #88BBFF'></div><div style='float:left'> : 삼각망 , &nbsp;&nbsp;&nbsp;&nbsp;</div>";
+		var circlediv1= "<div style='width: 16px; height: 16px; float:left; background: #FF0000; -moz-border-radius: 8px; -webkit-border-radius: 8px; border-radius: 8px;'></div><div style='float:left'> : 삼각망내오류 , &nbsp;&nbsp;&nbsp;</div>";
+		var circlediv2= "<div style='width: 16px; height: 16px; float:left; background: #7700FF; -moz-border-radius: 8px; -webkit-border-radius: 8px; border-radius: 8px;'></div> : 삼각망선상오류";
+    
+    var layer = new OpenLayers.Layer.Vector('Bathy-check', {
+      isBaseLayer: true,
+			attribution: recdiv + circlediv1 + circlediv2
+    });
+
+		var selectPoints = new OpenLayers.Feature.Vector(mPoint, null);
+		var errPolyPoints = new OpenLayers.Feature.Vector(errPolyPoint, null,
+				{fillColor:'#FF0000', strokeColor:'#FF0000', pointRadius:1});
+		var errEdgePoints = new OpenLayers.Feature.Vector(errEdgePoint, null,
+				{fillColor:'#7700FF', strokeColor:'#7700FF', pointRadius:1});
+		var delaunay = new OpenLayers.Feature.Vector(delaunayResult,null,
+				{fillOpacity:0,strokeColor:'#88BBFF'});
+		//layer.addFeatures([delaunay,totalPoint, selectPoints]);
+		layer.addFeatures([delaunay,errPolyPoints,errEdgePoints]);
+
+		map.addLayer(layer);
+    map.zoomToExtent(delaunay.geometry.getBounds());
+
+		document.getElementsByClassName('olControlAttribution')[0].style.bottom='0px';
+		document.getElementsByClassName('olControlAttribution')[0].style.left='5px';
+  }
+
+</script>
+<style>
+	body { margin:0px; padding:0px; width:99%; height:99%; overflow:hidden;}
+	#map { 
+	  width: <%=(fwidth-10)%>px;
+		height: <%=(fheight-10)%>px;
+		margin: 0px;
+		padding: 0px;
+		border: 1px solid gray;
+		overflow:hidden;
+	}
+</style>
+</head>
+<body onload="init()">
+	<div id="map"></div>
+</body>
+</html>
